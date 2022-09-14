@@ -58,7 +58,7 @@ function Template:render(vars)
   })
 
   -- Invokes our template
-  load(self.code, nil, 't', env)()
+  self.callable(env)
 
   -- General trimming
   local result = table.concat(_, ''):gsub('%s+', ' ')
@@ -81,6 +81,9 @@ function Template.new(source, globals, buildErrorHandler)
     source = source,
     globals = globals,
   }
+
+  -- Yield function (mostly for games who limit executions per frame)
+  local yield = (coroutine and coroutine.isyieldable() and coroutine.yield) or function () end
 
   -- Parses direct printing of variables, we'll convert a {{var}} into {% print(var) %}
   source = source:gsub('{{(.-)}}', '{%% print(%1) %%}')
@@ -126,13 +129,18 @@ function Template.new(source, globals, buildErrorHandler)
       -- Marks content as parsed
       source = ''
     end
+
+    -- Yields loading
+    yield()
   end
 
   -- Builds the Lua function
   self.code = table.concat(tPieces, '\n')
 
-  -- Checks our code for any errors
-  local _, err = load(self.code)
+  -- Builds our function and caches it, this is our template now
+  local _, err = load(string.format([[return function (_) _ENV = _; _ = nil; %s; end]], self.code), nil, 't', {})()
+
+  -- Checks for any errors
   if err then
     if buildErrorHandler then
       buildErrorHandler(self, err)
@@ -142,6 +150,9 @@ function Template.new(source, globals, buildErrorHandler)
 
     -- Retuns an invalid instance
     return nil
+  else
+    -- If everything passed, assigns our callable to our compiled function
+    self.callable = _
   end
 
   -- Initializes our instance
