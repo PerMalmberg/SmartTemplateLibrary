@@ -138,7 +138,7 @@ function Template.new(source, globals, buildErrorHandler)
   self.code = table.concat(tPieces, '\n')
 
   -- Builds our function and caches it, this is our template now
-  local _, err = load(string.format([[return function (_) _ENV = _; _ = nil; %s; end]], self.code), nil, 't', {})()
+  local _, err = load(string.format([[return function (_) _ENV = _; _ = _ENV[_]; %s; end]], self.code), nil, 't', {})()
 
   -- Checks for any errors
   if err then
