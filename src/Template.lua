@@ -28,6 +28,28 @@ local function tMerge(...)
   return result
 end
 
+--- Retrieves a certain line from a string
+---@param str string The source string
+---@param ln number The line number
+---@return string|nil
+local function getLine(str, ln)
+  local _ = 0
+  for s in str:gmatch("([^\n]*)\n?") do
+    _ = _ + 1
+    if _ == ln then
+      return s
+    end
+  end
+  return nil
+end
+
+--- Trims a string
+---@param str string The string being trimmed
+---@return string
+local function trim(str)
+  return str:gsub("^%s*(.-)%s*$", "%1")
+end
+
 ---@class Template
 local Template = {
   --- Globals available for every template by default
@@ -143,17 +165,31 @@ function Template.new(source, globals, buildErrorHandler)
   self.code = table.concat(tPieces, '\n')
 
   -- Builds our function and caches it, this is our template now
-  local _, err = load(string.format([[return function (_) _ENV = _; _ = _ENV[_]; %s; end]], self.code), nil, 't', {})
+  local lua = string.format('return function (_) _ENV = _; _ = _ENV[_]\n%s\nend', self.code)
+  local _, err = load(lua, nil, 't', {})
   if _ and not err then
     _ = _()
   end
 
   -- Checks for any errors
   if err then
+    local _, ln, msg = err:match('^(.-):(%d+):(.+)')
+    local nearSrc = getLine(self.source, ln - 1)
+    local nearLua = getLine(self.code, ln - 1)
+  
+    local ex = {
+      raw = err,
+      line = ln - 1,
+      near = trim(nearSrc or 'N/A'),
+      nearLua = trim(nearLua or 'N/A'),
+      message = trim(msg),
+      code = self.code,
+    }
+
     if buildErrorHandler then
-      buildErrorHandler(self, err)
+      buildErrorHandler(self, ex)
     else
-      error('Failed compiling template: ' .. err)
+      error(('Failed compiling template!\nError: %s\nLine: %d\nNear: %s\nCode: %s'):format(ex.message, ex.line, ex.near, ex.nearLua))
     end
 
     -- Retuns an invalid instance
