@@ -183,7 +183,6 @@ function Template.new(source, globals, buildErrorHandler)
       near = trim(nearSrc or 'N/A'),
       nearLua = trim(nearLua or 'N/A'),
       message = trim(msg),
-      code = self.code,
     }
 
     if buildErrorHandler then
