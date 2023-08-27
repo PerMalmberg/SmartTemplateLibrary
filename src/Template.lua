@@ -49,6 +49,11 @@ end
 ---@param vars table The variables to be used when rendering the template
 ---@return string
 function Template:render(vars)
+  -- Safety check, vars MUST be a table or nil
+  if type(vars or {}) ~= 'table' then
+    error('Template parameters must be a table, got ' .. type(vars))
+  end
+  
   --- This is our return buffer
   local _ = {}
 
@@ -138,7 +143,10 @@ function Template.new(source, globals, buildErrorHandler)
   self.code = table.concat(tPieces, '\n')
 
   -- Builds our function and caches it, this is our template now
-  local _, err = load(string.format([[return function (_) _ENV = _; _ = _ENV[_]; %s; end]], self.code), nil, 't', {})()
+  local _, err = load(string.format([[return function (_) _ENV = _; _ = _ENV[_]; %s; end]], self.code), nil, 't', {})
+  if _ and not err then
+    _ = _()
+  end
 
   -- Checks for any errors
   if err then
